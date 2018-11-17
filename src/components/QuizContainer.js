@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
-import firebase from 'firebase';
+import firebase from 'firebase/app';
+import 'firebase/database';
 import AppBar from './AppBar';
 import PropTypes from 'prop-types';
 import { withStyles } from '@material-ui/core/styles';
@@ -9,9 +10,9 @@ import {
   Typography,
   FormControl,
   FormControlLabel,
-  FormLabel,
   Radio,
-  RadioGroup
+  RadioGroup,
+  Button
 } from '@material-ui/core';
 
 const styles = theme => ({
@@ -37,17 +38,45 @@ class QuizContainer extends Component {
       .database()
       .ref('/')
       .once('value');
-    this.setState({ ...snapshot.val(), currentQuestion: 0 });
+    this.setState({ ...snapshot.val(), currentQuestion: 0, correctAnswers: 0 });
   };
   handleAnswerChoice = evt => {
-    console.log(evt);
+    this.setState({ answerGiven: evt.target.value });
+  };
+
+  submitAnswer = () => {
+    const {
+      questions,
+      currentQuestion,
+      correctAnswers,
+      answerGiven
+    } = this.state;
+    const correctAnswer = questions[currentQuestion].correctAnswer;
+
+    if (answerGiven === correctAnswer) {
+      this.setState({ correctAnswers: correctAnswers + 1 });
+    }
+    this.setState({ currentQuestion: currentQuestion + 1, answerGiven: null });
   };
   render() {
-    const { questions, currentQuestion } = this.state;
+    const {
+      questions,
+      currentQuestion,
+      answerGiven,
+      correctAnswers
+    } = this.state;
     const { classes } = this.props;
 
     let content;
-    if (questions) {
+    if (!questions) {
+      content = <CircularProgress />;
+    } else if (questions.length === currentQuestion) {
+      content = (
+        <Typography variant="h6" gutterBottom>
+          Score: {correctAnswers} / {questions.length}
+        </Typography>
+      );
+    } else if (questions) {
       content = (
         <React.Fragment>
           <Typography variant="subtitle1" gutterBottom>
@@ -57,30 +86,37 @@ class QuizContainer extends Component {
             {questions[currentQuestion].question}
           </Typography>
           <FormControl component="fieldset" className={classes.formControl}>
-            <FormLabel component="legend">What do you think?</FormLabel>
             <RadioGroup
               aria-label="answer"
               name="answer"
               className={classes.group}
-              value={this.state.value}
+              value={answerGiven}
               onChange={this.handleAnswerChoice}
             >
               {Object.keys(questions[currentQuestion].answers).map(key => {
                 const answer = questions[currentQuestion].answers[key];
                 return (
                   <FormControlLabel
-                    value={answer}
+                    value={key}
+                    key={key}
                     control={<Radio color="primary" />}
                     label={answer}
                   />
                 );
               })}
             </RadioGroup>
+            <Button
+              variant="contained"
+              size="medium"
+              color="primary"
+              onClick={() => this.submitAnswer()}
+              disabled={!answerGiven}
+            >
+              Submit
+            </Button>
           </FormControl>
         </React.Fragment>
       );
-    } else {
-      content = <CircularProgress />;
     }
 
     return (
